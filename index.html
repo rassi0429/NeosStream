@@ -15,16 +15,16 @@
             <button id='getUserMediaButton'>Get User Media</button>
         </div>
         <div>
-            <canvas id='grabFrameCanvas' width="240" height="135"></canvas>
+            <canvas id='grabFrameCanvas' width="320" height="180"></canvas>
         </div>
     </div>
     <script>
-        setInterval(() => { onGrabFrameButtonClick() }, 200)
+        setInterval(() => { onGrabFrameButtonClick() }, 1000)
 
         var imageCapture;
 
         function onGetUserMediaButtonClick() {
-            navigator.mediaDevices.getUserMedia({ video: { width: 240, height: 135, frameRate: { ideal: 10, max: 10 } } })
+            navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 180, frameRate: { ideal: 10, max: 10 } } })
                 .then(mediaStream => {
                     document.querySelector('video').srcObject = mediaStream;
 
@@ -40,11 +40,29 @@
             }).join("");
         }
 
-        let ws_url = 'wss://wsecho.kokoa.dev/video';
-        let sock;
+        let ws_url1 = 'wss://wsecho.kokoa.dev/video1';
+        let ws_url2 = 'wss://wsecho.kokoa.dev/video2';
+        let ws_url3 = 'wss://wsecho.kokoa.dev/video3';
+        let ws_url4 = 'wss://wsecho.kokoa.dev/video5';
+        let sock1;
+        let sock2;
+        let sock3;
+        let sock4;
         function ws_connect() {
-            sock = new WebSocket(ws_url);
-            sock.onclose = function incoming(event) {
+            sock1 = new WebSocket(ws_url1);
+            sock2 = new WebSocket(ws_url2);
+            sock3 = new WebSocket(ws_url3);
+            sock4 = new WebSocket(ws_url4);
+            sock1.onclose = function incoming(event) {
+                ws_connect();
+            };
+            sock2.onclose = function incoming(event) {
+                ws_connect();
+            };
+            sock3.onclose = function incoming(event) {
+                ws_connect();
+            };
+            sock4.onclose = function incoming(event) {
                 ws_connect();
             };
         }
@@ -55,20 +73,44 @@
             imageCapture.grabFrame()
                 .then(async imageBitmap => {
                     const canvas = document.querySelector('#grabFrameCanvas');
-                    const resize = await createImageBitmap(imageBitmap, { resizeHeight: 135, resizeWidth: 240 })
+                    const resize = await createImageBitmap(imageBitmap, { resizeHeight: 180, resizeWidth: 320 })
                     drawCanvas(canvas, resize);
                     const q = document.querySelector('#grabFrameCanvas').getContext('2d');
-                    var c = q.getImageData(0, 0, 240, 135).data;
-                    let result = ""
-                    for (let i = 0; i < 129600; i += 4) {
-                        result += `<co=${rgb2hex([c[i], c[i + 1], c[i + 2]])}>`
-                        if (i % 960 == 0) {
-                            result += "\n"
+                    var c = q.getImageData(0, 0, 320, 180).data;
+                    let result1 = ""
+                    let result2 = ""
+                    let result3 = ""
+                    let result4 = ""
+                    for (let i = 0; i < 57604; i += 4) {
+                        result1 += `<co=${rgb2hex([c[i], c[i + 1], c[i + 2]])}>`
+                        if (i % 1280 == 1276 && i !== 0) {
+                            result1 += "\n"
                         }
                     }
-                    sock.send(result);
+                    sock1.send(result1);
+                    for (let i = 57600; i < 115200; i += 4) {
+                        result2 += `<co=${rgb2hex([c[i], c[i + 1], c[i + 2]])}>`
+                        if (i % 1280 == 1276 && i !== 57600) {
+                            result2 += "\n"
+                        }
+                    }
+                    sock2.send(result2);
+                    for (let i =  115200; i < 172800; i += 4) {
+                        result3 += `<co=${rgb2hex([c[i], c[i + 1], c[i + 2]])}>`
+                        if (i % 1280 == 1276 && i !== 115200) {
+                            result3 += "\n"
+                        }
+                    }
+                    sock3.send(result3);
+                    for (let i = 172800; i < 230400; i += 4) {
+                        result4 += `<co=${rgb2hex([c[i], c[i + 1], c[i + 2]])}>`
+                        if (i % 1280 == 1276 && i !== 172800) {
+                            result4 += "\n"
+                        }
+                    }
+                    sock4.send(result4);
                 })
-                .catch(error => ChromeSamples.log(error));
+                .catch(error => console.log(error));
         }
 
         function drawCanvas(canvas, img) {
