@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="description" content="Sample illustrating the use of Image Capture / Grab Frame - Take Photo.">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+
+<body>
+    <div id='results'>
+        <div>
+            <video autoplay></video>
+            <button id='getUserMediaButton'>Get User Media</button>
+        </div>
+        <div>
+            <canvas id='grabFrameCanvas' width="240" height="135"></canvas>
+        </div>
+    </div>
+    <script>
+        setInterval(() => { onGrabFrameButtonClick() }, 200)
+
+        var imageCapture;
+
+        function onGetUserMediaButtonClick() {
+            navigator.mediaDevices.getUserMedia({ video: { width: 240, height: 135, frameRate: { ideal: 10, max: 10 } } })
+                .then(mediaStream => {
+                    document.querySelector('video').srcObject = mediaStream;
+
+                    const track = mediaStream.getVideoTracks()[0];
+                    imageCapture = new ImageCapture(track);
+                })
+                .catch(error => ChromeSamples.log(error));
+        }
+
+        function rgb2hex(rgb) {
+            return "#" + rgb.map(function (value) {
+                return ("0" + value.toString(16)).slice(-2);
+            }).join("");
+        }
+
+        let ws_url = 'wss://wsecho.kokoa.dev/video';
+        let sock;
+        function ws_connect() {
+            sock = new WebSocket(ws_url);
+            sock.onclose = function incoming(event) {
+                ws_connect();
+            };
+        }
+
+        ws_connect();
+
+        function onGrabFrameButtonClick() {
+            imageCapture.grabFrame()
+                .then(async imageBitmap => {
+                    const canvas = document.querySelector('#grabFrameCanvas');
+                    const resize = await createImageBitmap(imageBitmap, { resizeHeight: 135, resizeWidth: 240 })
+                    drawCanvas(canvas, resize);
+                    const q = document.querySelector('#grabFrameCanvas').getContext('2d');
+                    var c = q.getImageData(0, 0, 240, 135).data;
+                    let result = ""
+                    for (let i = 0; i < 129600; i += 4) {
+                        result += `<co=${rgb2hex([c[i], c[i + 1], c[i + 2]])}>`
+                        if (i % 960 == 0) {
+                            result += "\n"
+                        }
+                    }
+                    sock.send(result);
+                })
+                .catch(error => ChromeSamples.log(error));
+        }
+
+        function drawCanvas(canvas, img) {
+            canvas.width = getComputedStyle(canvas).width.split('px')[0];
+            canvas.height = getComputedStyle(canvas).height.split('px')[0];
+            let ratio = Math.min(canvas.width / img.width, canvas.height / img.height);
+            let x = (canvas.width - img.width * ratio) / 2;
+            let y = (canvas.height - img.height * ratio) / 2;
+            canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+            canvas.getContext('2d').drawImage(img, 0, 0, img.width, img.height,
+                x, y, img.width * ratio, img.height * ratio);
+        }
+
+        document.querySelector('video').addEventListener('play', function () {
+            document.querySelector('#grabFrameButton').disabled = false;
+            document.querySelector('#takePhotoButton').disabled = false;
+        });
+    </script>
+    <script>
+        document.querySelector('#getUserMediaButton').addEventListener('click', onGetUserMediaButtonClick);
+    </script>
+</body>
+</html>
